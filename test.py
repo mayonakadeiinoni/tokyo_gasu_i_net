@@ -223,6 +223,40 @@ PARTY_ICON_DEFAULT = {"A党": "🏛️", "B党": "👨‍👩‍👧", "C党": "
 # --------------------------------
 # ルーティング補助
 # --------------------------------
+def _set_query_params(**params):
+    try:
+        st.query_params.clear()
+        for k, v in params.items():
+            if v is not None:
+                st.query_params[k] = str(v)
+    except Exception:
+        st.experimental_set_query_params(**{k: str(v) for k, v in params.items() if v is not None})
+
+def nav_to_list_clear():
+    """一覧ビューへ遷移しつつ clear=1 を立てる（この後 rerun）"""
+    _set_query_params(view="list", clear="1")
+    st.rerun()
+
+def consume_clear_if_needed():
+    """
+    ?clear=1 が付与されていたら、ウィジェット生成前に初期化して
+    ?view=list に戻す（clear は消して2重実行を防止）
+    """
+    try:
+        has_clear = "clear" in st.query_params
+    except Exception:
+        has_clear = "clear" in st.experimental_get_query_params()
+    if has_clear:
+        # ここはウィジェット生成前に呼ぶこと
+        st.session_state["party_filter"] = "すべて"
+        st.session_state["policy_filter"] = "すべて"
+        st.session_state["search_input"] = ""
+        # （任意）詳細選択の解除
+        st.session_state["selected_id"] = None
+        # clear を除去して list へ固定 → 再実行
+        _set_query_params(view="list")
+        st.rerun()
+
 def get_query_params():
     """view ('list' or 'detail'), id (str|None) を取得（新旧API両対応）"""
     view, cid = "list", None
@@ -374,6 +408,7 @@ def detail_html(c: Dict[str, Any]) -> str:
 # --------------------------------
 def render_list_page():
     render_header()
+    consume_clear_if_needed()
 
     # フィルタ行
     fc1, fc2, fc3, fc4 = st.columns([1, 1, 2, 1])
@@ -393,7 +428,7 @@ def render_list_page():
         st.text_input("候補者名で検索", key="search_input", placeholder="例：田中 / 佐藤 など")
     with fc4:
         if st.button("🧹 すべてクリア", use_container_width=True):
-            clear_all()
+            nav_to_list_clear()
 
     # アクティブフィルタ（チップ）
     chips = []
@@ -438,9 +473,11 @@ def render_detail_page(cid_str: str | None):
     bc1, bc2 = st.columns([1, 6])
     with bc1:
         if st.button("← 一覧へ戻る", use_container_width=True):
-            nav_to("list", None)
+            _set_query_params(view="list")
+            st.rerun()
     with bc2:
-        st.caption("詳細ページ（クエリによる疑似遷移）")
+        if st.button("🧹 すべてクリア", use_container_width=True):
+            nav_to_list_clear()
 
     # 対象候補
     candidate = None
