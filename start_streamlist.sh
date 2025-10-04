@@ -1,2 +1,2 @@
 #!/bin/bash
-streamlit run test.py
+streamlit run politics.py

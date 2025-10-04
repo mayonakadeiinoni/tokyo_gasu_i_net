@@ -375,26 +375,21 @@ def detail_html(c: Dict[str, Any]) -> str:
 
     manifesto_items = "\n".join([f"<li>{m}</li>" for m in manifesto])
 
-    return f"""
-    <div class="detail-card">
-      <div class="detail-header">
+    return f"""<div class="detail-card"><div class="detail-header">
         <div class="modal-photo {photo_class}">{initial}</div>
         <h2 style="margin:0 0 8px 0;">{name}</h2>
         <div class="candidate-party {party_class}" style="display:inline-block;">
           <span class="party-icon">{party_icon}</span>{party}
         </div>
       </div>
-
       <div class="section">
         <div class="section-title">📋 主な公約</div>
         <ul class="manifesto-list">{manifesto_items}</ul>
       </div>
-
       <div class="section">
         <div class="section-title">💼 経歴・実績</div>
         <div style="line-height:1.8; color:#555;">{career}</div>
       </div>
-
       <div class="section">
         <div class="section-title">🎯 重点政策</div>
         <div style="line-height:1.8; color:#555;">{policy}</div>
