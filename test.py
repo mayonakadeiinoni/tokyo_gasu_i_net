@@ -462,7 +462,7 @@ def render_list_page():
             if st.button("詳細を見る ➜", key=f"goto_{c['id']}", use_container_width=True):
                 nav_to("detail", c["id"])
 
-
+#save
 # --------------------------------
 # 詳細ページ
 # --------------------------------
