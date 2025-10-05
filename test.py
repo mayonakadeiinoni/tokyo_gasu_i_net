@@ -9,6 +9,8 @@
 from __future__ import annotations
 import streamlit as st
 from typing import List, Dict, Any
+from pathlib import Path
+import base64
 
 # --------------------------------
 # ページ設定
@@ -95,6 +97,15 @@ st.markdown(
 .party-C党 { background:#f5eef8; color:#7d4a9a; border-color:#7d4a9a; }
 .party-D党 { background:#eef8f0; color:#3d8b4a; border-color:#3d8b4a; }
 .party-無所属 { background:#f5f5f5; color:#424242; border-color:#757575; }
+
+/* 党アイコンを画像で使うときのサイズ・位置合わせ */
+.party-icon img{
+  width: 1.15em;
+  height: 1.15em;
+  object-fit: contain;
+  vertical-align: -0.18em;
+  display: inline-block;
+}
 </style>
 """,
     unsafe_allow_html=True,
@@ -105,8 +116,35 @@ from data import candidates
 CANDIDATES: List[Dict[str, Any]] = candidates
 
 
-PARTY_ICON_DEFAULT = {"自民党": "🏛️", "民主党": "👨‍👩‍👧", "立憲社会党": "🏥", "社会党": "🌿", "共産党": "🗣️"}
+PARTY_ICON_DEFAULT = {"自民党": "🏛️", "民主党": "👨‍👩‍👧", "立憲社会党": "🏥", "社民党": "🌿", "共産党": "🗣️"}
 
+# =========================
+# 党アイコン（画像 or 絵文字）
+
+@st.cache_data(show_spinner=False)
+def _data_uri_from_file(path: str) -> str:
+    """ローカル画像を data URI に変換（存在しなければ空文字）"""
+    p = Path(path)
+    if not p.exists():
+        return ""
+    ext = p.suffix.lower()
+    mime = "image/png" if ext == ".png" else ("image/jpeg" if ext in [".jpg", ".jpeg"] else "image/png")
+    b64 = base64.b64encode(p.read_bytes()).decode("ascii")
+    return f"data:{mime};base64,{b64}"
+
+def set_party_icon_from_file(party: str, path: str):
+    """党アイコンをローカル画像に差し替え（HTMLの<img>として使う）"""
+    uri = _data_uri_from_file(path)
+    if uri:
+        # PARTY_ICON_DEFAULT は get_party_icon() から参照され、<span class="party-icon">{ここ}</span> に入る
+        PARTY_ICON_DEFAULT[party] = f'<img src="{uri}" alt="{party}">'
+    else:
+        st.warning(f"党アイコン画像が見つかりません: {path}")
+
+set_party_icon_from_file("自民党", "zimin.png")
+set_party_icon_from_file("民主党", "minsh.png")
+set_party_icon_from_file("立憲社会党", "rikken.png")
+set_party_icon_from_file("社民党", "syamin.png")
 
 # --------------------------------
 # ルーティング補助
@@ -253,6 +291,10 @@ def detail_html(c: Dict[str, Any]) -> str:
     party = c.get("party", "無所属")
     photo_class = f"photo-{party}"
     party_class = f"party-{party}"
+    key_policy = c.get("keyPolicy", "")
+    brief = c.get("brief", "")
+    comparisons = c.get("comparisons", {}) or {}
+    comparison_items = "\n".join([f"<li>{k}: {v}</li>" for k, v in comparisons.items()])
     party_icon = get_party_icon(party, c.get("partyIcon"))
 
     initial = c.get("initial", "")
@@ -269,21 +311,32 @@ def detail_html(c: Dict[str, Any]) -> str:
 
     manifesto_items = "\n".join([f"<li>{m}</li>" for m in manifesto if not m == ""])
 
-    return f"""<div class="detail-card"><div class="detail-header">
-        <div class="modal-photo {photo_class}">{initial}</div>
-        <h2 style="margin:0 0 8px 0;">{name}</h2>
-        <div class="candidate-party {party_class}" style="display:inline-block;">
-          <span class="party-icon">{party_icon}</span>{party}
+    return f"""
+    <div class="detail-card">
+        <div class="detail-header">
+            <div class="modal-photo {photo_class}">{initial}</div>
+            <h2 style="margin:0 0 8px 0;">{name}</h2>
+            <div class="candidate-party {party_class}" style="display:inline-block;">
+                <span class="party-icon">{party_icon}</span>{party}
+            </div>
         </div>
-      </div>
-      <div class="section">
-        <div class="section-title">📋 主な公約</div>
-        <ul class="manifesto-list">{manifesto_items}</ul>
-      </div>
-      <div class="section">
-        <div class="section-title">💼 経歴・実績</div>
-        <div style="line-height:1.8; color:#555;">{career}</div>
-      </div>
+        <div class="section">
+            <div class="section-title">📋 主な公約</div>
+            <ul class="manifesto-list">{manifesto_items}</ul>
+        </div>
+        <div class="section">
+            <div class="section-title">💼 経歴・実績</div>
+            <div style="line-height:1.8; color:#555;">{career}</div>
+        </div>
+        <div class="section">
+            <div class="section-title">🎯 重点政策</div>
+            <p style="margin:0; font-weight:bold;">分野：{key_policy}</p>
+            <div style="line-height:1.8; color:#555;">{brief}</div>
+        </div>
+        <div class="section">
+            <div class="section-title">📌 主なスタンス</div>
+            <ul class="manifesto-list">{comparison_items}</ul>
+        </div>
     </div>
     """
 
