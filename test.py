@@ -27,10 +27,19 @@ st.set_page_config(
 st.markdown(
     """
 <style>
+/* ===== ベース ===== */
 .stApp {
   background: linear-gradient(135deg, #ECECFF 0%, #F8F8FF 100%);
   font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
 }
+
+/* ---- 「上の白帯と重なる」対策：上パディングを確保 ---- */
+.block-container{
+  max-width: 1080px;
+  margin-left:auto; margin-right:auto;
+  padding: 28px 16px 0;   /* ← 上に余白を足す */
+}
+.app-header, .chips, .detail-card{ max-width: 880px; margin-left:auto; margin-right:auto; }
 
 /* ヘッダー */
 .app-header { color:#4a4a6a; margin: 6px 0 18px; }
@@ -65,26 +74,53 @@ st.markdown(
   to   { opacity: 1; transform: translateX(0); }
 }
 
+/* ===== フィルタ行の見た目・揃え ===== */
+.filters .stSelectbox > label,
+.filters .stTextInput > label{ margin-bottom:6px; }
+.filters .clear-col .stButton>button{ width:100%; } /* 幅を検索欄に揃える */
+
 /* フィルタ表示（チップ）*/
 .chips { display:flex; gap:8px; flex-wrap:wrap; align-items:center; background:#f8f9ff; border-radius:8px; padding:8px 12px; }
 .chip-label { font-weight:700; color:#666; margin-right:4px; }
 .chip { display:inline-flex; align-items:center; gap:6px; background:white; padding:6px 12px; border-radius:20px; font-size:.85em; color:#333; 
         box-shadow: 0 2px 4px rgba(0,0,0,.08); }
 
-/* 候補者カード */
-.candidate-card { background:white; border-radius:16px; padding:16px; text-align:center; 
-  box-shadow: 0 4px 12px rgba(0,0,0,.08); transition: transform .2s ease, box-shadow .2s ease, border .2s ease; border: 2px solid transparent; }
+/* ===== 候補者カード（高さを揃える） ===== */
+.candidate-card {
+  background:white; border-radius:16px; padding:16px; text-align:center;
+  box-shadow: 0 4px 12px rgba(0,0,0,.08);
+  transition: transform .2s ease, box-shadow .2s ease, border .2s ease;
+  border: 2px solid transparent;
+  display:flex; flex-direction:column;
+  min-height: 360px;      /* ★ カードの最小高を固定 */
+}
 .candidate-card:hover { transform: translateY(-6px); box-shadow: 0 8px 24px rgba(0,0,0,.12); }
 .candidate-card.selected { border: 3px solid #667eea; box-shadow: 0 8px 24px rgba(102,126,234,.3); }
 
 .candidate-photo { width:120px; height:120px; border-radius:50%; margin: 0 auto 12px; display:flex; align-items:center; justify-content:center; 
   color:white; font-size:2.4rem; font-weight:700; box-shadow: 0 5px 15px rgba(0,0,0,.2); border: 3px solid; overflow:hidden; position:relative; }
-.candidate-name { font-size:1.1rem; font-weight:700; color:#333; margin-bottom:6px; }
-.candidate-tags { font-size:.85rem; color:#888; margin-bottom:8px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+.candidate-name { font-size:1.1rem; font-weight:700; color:#333; margin-bottom:6px; min-height:1.4em; }
+.candidate-tags { font-size:.85rem; color:#888; margin-bottom:8px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap; min-height:1.6em; }
 .tag { background:#f0f0f0; padding:3px 8px; border-radius:4px; white-space:nowrap; }
 .candidate-party { display:inline-block; padding: 4px 12px; border-radius: 20px; font-size:.9rem; margin-bottom:8px; font-weight:700; border: 2px solid; }
 .party-icon { margin-right:6px; font-size:1.1em; }
-.candidate-brief { font-size:.9rem; color:#777; line-height:1.5; min-height: 3em; }
+
+/* ブリーフは 3 行で省略（高さをそろえる） */
+.candidate-brief {
+  font-size:.9rem; color:#777; line-height:1.5;
+  display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient: vertical;
+  overflow:hidden; min-height: calc(1.5em * 3);
+}
+
+/* カード内のアクション（詳細を見る）を下に固定 */
+.card-actions { margin-top:auto; }
+.card-actions .btn {
+  display:block; width:100%; text-align:center;
+  padding:10px 12px; border-radius:8px; border:1px solid #e2e8f0;
+  background:#fff; font-weight:700; box-shadow: 0 1px 2px rgba(0,0,0,.05);
+  text-decoration:none; color:#334155;
+}
+.card-actions .btn:hover{ background:#f8fafc; }
 
 /* 詳細カード（モーダル相当）*/
 .detail-card { background:white; border-radius:16px; padding:24px; box-shadow: 0 8px 32px rgba(0,0,0,.15); }
@@ -104,16 +140,16 @@ st.markdown(
 /* バッジ */
 .stance-badge{ display:inline-block; padding:8px 16px; border-radius:999px; font-weight:700; line-height:1.25; letter-spacing:.02em; box-shadow:inset 0 0 0 1px rgba(0,0,0,.05); white-space:nowrap; }
 @media (min-width: 900px){ .stance-badge{ font-size:1.15rem; padding:10px 18px; } }
-.stance-badge.pro{      background:#e6f4ea; color:#137333; }  /* 緑: 賛成 */
-.stance-badge.partial1{ background:#fff7e5; color:#8a6d1d; }  /* 黄: 一部賛成 */
-.stance-badge.neutral{  background:#f1f3f4; color:#3c4043; }  /* 灰: 中立 */
-.stance-badge.partial2{ background:#fff3e0; color:#8a6d1d; }  /* 橙: 一部反対 */
-.stance-badge.con{      background:#fce8e6; color:#c5221f; }  /* 赤: 反対 */
-.stance-badge.unknown{  background:#e8f0fe; color:#1967d2; }  /* 青: 未回答 */
+.stance-badge.pro{      background:#e6f4ea; color:#137333; }
+.stance-badge.partial1{ background:#fff7e5; color:#8a6d1d; }
+.stance-badge.neutral{  background:#f1f3f4; color:#3c4043; }
+.stance-badge.partial2{ background:#fff3e0; color:#8a6d1d; }
+.stance-badge.con{      background:#fce8e6; color:#c5221f; }
+.stance-badge.unknown{  background:#e8f0fe; color:#1967d2; }
 
 .stance-legend{ margin-top:4px; font-size:12px; color:#666; display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
 
-/* 政党カラー（既存＋追加） */
+/* 政党カラー */
 .photo-自民党  { background: linear-gradient(135deg, #3d94c3 0%, #2b7a9e 100%); border-color:#236680; }
 .party-自民党  { background:#e8f4f8; color:#2b7a9e; border-color:#2b7a9e; }
 
@@ -123,7 +159,7 @@ st.markdown(
 .photo-立憲民主党{ background: linear-gradient(135deg, #9a5fb8 0%, #7d4a9a 100%); border-color:#603b7a; }
 .party-立憲民主党{ background:#f5eef8; color:#7d4a9a; border-color:#7d4a9a; }
 
-/* 互換：もし古いデータに「立憲社会党」が来ても崩れないよう残す */
+/* 互換（旧名称） */
 .photo-立憲社会党{ background: linear-gradient(135deg, #9a5fb8 0%, #7d4a9a 100%); border-color:#603b7a; }
 .party-立憲社会党{ background:#f5eef8; color:#7d4a9a; border-color:#7d4a9a; }
 
@@ -141,10 +177,6 @@ st.markdown(
 
 /* 党アイコンの画像サイズ */
 .party-icon img{ width:1.15em; height:1.15em; object-fit:contain; vertical-align:-0.18em; display:inline-block; }
-
-/* ===== 中央寄せ（本文幅を絞って読みやすく） ===================== */
-.block-container{ max-width: 1080px; margin-left:auto; margin-right:auto; padding: 0 16px; }
-.app-header, .chips, .detail-card{ max-width: 880px; margin-left:auto; margin-right:auto; }
 </style>
 """,
     unsafe_allow_html=True,
@@ -214,10 +246,9 @@ def set_party_icon_from_file(party: str, path: str):
     else:
         st.warning(f"党アイコン画像が見つかりません: {path}")
 
-# 必要なら党ロゴを画像に
 set_party_icon_from_file("自民党", "zimin.png")
 set_party_icon_from_file("民主党", "minsh.png")
-set_party_icon_from_file("立憲民主党", "rikken.png")  # ← 立憲民主党に修正
+set_party_icon_from_file("立憲民主党", "rikken.png")
 set_party_icon_from_file("社民党", "shamin.png")
 
 # ---------- 顔写真（自動割当） ----------
@@ -238,12 +269,9 @@ MEN_POOL   = ["men1.png","men2.png"]
 WOMEN_POOL = ["woman1.png","woman2.png","woman3.png"]
 
 def _photo_uri_for(c: Dict[str, Any]) -> str | None:
-    # 1) データに photo があれば最優先
     p = c.get("photo")
-    # 2) 明示マップ
     if not p:
         p = PHOTO_MAP_BY_ID.get(c.get("id")) or PHOTO_MAP_BY_NAME.get(c.get("name"))
-    # 3) 簡易推定 → 安定分配
     if not p:
         name = c.get("name","")
         is_female = any(h in name for h in FEM_HINTS)
@@ -356,15 +384,21 @@ def candidate_card_html(c: Dict[str, Any]) -> str:
     if key_policy: tags.append(f'<span class="tag">🎯 {html.escape(key_policy)}</span>')
     tags_html = "".join(tags)
 
+    # ★ 詳細リンクをカード内に配置して高さを揃える
     return f"""
     <div class="candidate-card">
-      <div class="candidate-photo {photo_class}">{photo_html}</div>
-      <div class="candidate-name">{html.escape(name)}</div>
-      <div class="candidate-tags">{tags_html}</div>
-      <div class="candidate-party {party_class}">
-        <span class="party-icon">{party_icon}</span>{html.escape(party)}
+      <div>
+        <div class="candidate-photo {photo_class}">{photo_html}</div>
+        <div class="candidate-name">{html.escape(name)}</div>
+        <div class="candidate-tags">{tags_html}</div>
+        <div class="candidate-party {party_class}">
+          <span class="party-icon">{party_icon}</span>{html.escape(party)}
+        </div>
+        <div class="candidate-brief">{html.escape(brief)}</div>
       </div>
-      <div class="candidate-brief">{html.escape(brief)}</div>
+      <div class="card-actions">
+        <a class="btn" href="?view=detail&id={c.get('id')}">詳細を見る ➜</a>
+      </div>
     </div>
     """
 
@@ -463,19 +497,25 @@ def render_list_page():
     render_header()
     consume_clear_if_needed()
 
-    # データ駆動のフィルタ
-    fc1, fc2, fc3, fc4 = st.columns([1, 1, 2, 1])
+    # ★ フィルタ行：入れ子の列で検索とクリアを横並びに
+    st.markdown('<div class="filters">', unsafe_allow_html=True)
+    fc1, fc2, fc34 = st.columns([1, 1, 3], gap="large")
     with fc1:
         party_options = ["すべて"] + sorted({c.get("party","無所属") for c in CANDIDATES})
         st.selectbox("政党", options=party_options, key="party_filter")
     with fc2:
         policy_options = ["すべて"] + sorted({c.get("keyPolicy","") for c in CANDIDATES if c.get("keyPolicy")})
         st.selectbox("政策テーマ", options=policy_options, key="policy_filter")
-    with fc3:
-        st.text_input("候補者名で検索", key="search_input", placeholder="例：田中 / 佐藤 など")
-    with fc4:
-        if st.button("🧹 すべてクリア", use_container_width=True):
-            nav_to_list_clear()
+    with fc34:
+        c3, c4 = st.columns([4, 1], gap="small")
+        with c3:
+            st.text_input("候補者名で検索", key="search_input", placeholder="例：田中 / 佐藤 など")
+        with c4:
+            st.markdown('<div class="clear-col">', unsafe_allow_html=True)
+            if st.button("🧹 すべてクリア", use_container_width=True):
+                nav_to_list_clear()
+            st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # アクティブフィルタ（チップ）
     chips = []
@@ -499,11 +539,9 @@ def render_list_page():
     N_COLS = 4
     cols = st.columns(N_COLS, gap="large")
     for idx, c in enumerate(items):
-        col = cols[idx % N_COLS]
-        with col:
+        with cols[idx % N_COLS]:
             st.markdown(candidate_card_html(c), unsafe_allow_html=True)
-            if st.button("詳細を見る ➜", key=f"goto_{c['id']}", use_container_width=True):
-                nav_to("detail", c["id"])
+
     if st.button("比較する", key="go_compare", use_container_width=True):
         nav_to("compare")
 
@@ -543,8 +581,6 @@ def render_detail_page(cid_str: str | None):
         for i, c in enumerate(same_party):
             with cols[i % len(cols)]:
                 st.markdown(candidate_card_html(c), unsafe_allow_html=True)
-                if st.button("この候補を見る ➜", key=f"goto_same_{c['id']}", use_container_width=True):
-                    nav_to("detail", c["id"])
 
 # --------------------------------
 # 比較ページ（簡易表）
