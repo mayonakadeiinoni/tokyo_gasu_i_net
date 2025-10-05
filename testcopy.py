@@ -102,10 +102,122 @@ st.markdown(
 
 from data import candidates
 
-CANDIDATES: List[Dict[str, Any]] = candidates
+CANDIDATES: List[Dict[str, Any]] = [
+    {
+        "id": 1,
+        "name": "田中 太郎",
+        "party": "A党",
+        "partyIcon": "🏛️",
+        "initial": "田",
+        "region": "東京1区",
+        "keyPolicy": "経済",
+        "brief": "経済成長と地域活性化を推進",
+        "manifesto": [
+            "中小企業支援のための減税措置を拡大",
+            "地域経済活性化のための特別予算1000億円",
+            "デジタル化推進による行政効率化",
+            "若者の起業支援制度の創設",
+        ],
+        "career": "経済学博士。大手企業で20年の経営経験を持ち、前回の選挙で初当選。経済委員会の委員として活動。",
+        "policy": "地域経済の活性化と雇用創出を最優先課題とし、特に若者や女性の働きやすい環境づくりに注力しています。",
+        "theme": "経済",
+    },
+    {
+        "id": 2,
+        "name": "佐藤 花子",
+        "party": "B党",
+        "partyIcon": "👨‍👩‍👧",
+        "initial": "佐",
+        "region": "東京1区",
+        "keyPolicy": "教育",
+        "brief": "教育と子育て支援の充実",
+        "manifesto": [
+            "高校までの教育完全無償化",
+            "保育士の待遇改善と保育所の増設",
+            "給食費の無償化を全国展開",
+            "教員の働き方改革の推進",
+        ],
+        "career": "元小学校教師。教育現場での15年の経験を活かし、子育て世代の代弁者として活動中。2期目。",
+        "policy": "すべての子どもたちが平等に質の高い教育を受けられる社会の実現を目指しています。",
+        "theme": "教育",
+    },
+    {
+        "id": 3,
+        "name": "鈴木 一郎",
+        "party": "C党",
+        "partyIcon": "🏥",
+        "initial": "鈴",
+        "region": "東京1区",
+        "keyPolicy": "医療",
+        "brief": "医療制度改革と高齢者支援",
+        "manifesto": [
+            "地域医療体制の強化と医師不足の解消",
+            "介護職員の給与を全国平均+30%に引き上げ",
+            "高齢者向け健康促進プログラムの拡充",
+            "がん検診の無料化を推進",
+        ],
+        "career": "医師として30年のキャリア。地域医療に貢献し、医療政策の専門家として3期目の当選。",
+        "policy": "誰もが安心して医療を受けられる社会保障制度の構築を目指しています。",
+        "theme": "医療",
+    },
+    {
+        "id": 4,
+        "name": "山田 美咲",
+        "party": "A党",
+        "initial": "山",
+        "region": "東京1区",
+        "brief": "環境保護とクリーンエネルギー",
+        "manifesto": [
+            "2035年までに再生可能エネルギー比率50%達成",
+            "電気自動車購入補助金の大幅拡充",
+            "プラスチック削減条例の制定",
+            "森林保全と都市緑化の推進",
+        ],
+        "career": "環境NGOで活動後、政界へ。環境問題に精通し、国際会議での交渉経験も豊富。初当選。",
+        "policy": "持続可能な社会の実現と次世代への責任ある環境政策を推進します。",
+        "theme": "環境",
+    },
+    {
+        "id": 5,
+        "name": "中村 健一",
+        "party": "無所属",
+        "partyIcon": "🗣️",
+        "initial": "中",
+        "region": "東京1区",
+        "keyPolicy": "政治改革",
+        "brief": "地域密着型の政治改革",
+        "manifesto": [
+            "議員報酬の30%削減と政治資金の透明化",
+            "住民投票制度の拡充",
+            "地域コミュニティ活性化のための基金創設",
+            "若者の政治参加を促進する教育プログラム",
+        ],
+        "career": "元市議会議員。市民運動のリーダーとして地域課題の解決に尽力。今回無所属で挑戦。",
+        "policy": "市民の声を直接政治に反映させる、開かれた政治の実現を目指します。",
+        "theme": "政治改革",
+    },
+    {
+        "id": 6,
+        "name": "小林 真理子",
+        "party": "B党",
+        "partyIcon": "👨‍👩‍👧",
+        "initial": "小",
+        "region": "東京1区",
+        "keyPolicy": "労働",
+        "brief": "女性の活躍推進と働き方改革",
+        "manifesto": [
+            "男女の賃金格差を5年以内に解消",
+            "育児休業中の所得保障を100%に",
+            "テレワーク推進のための企業支援",
+            "ハラスメント対策の強化",
+        ],
+        "career": "弁護士として労働問題に取り組み、多くの女性労働者を支援。2期目の挑戦。",
+        "policy": "性別に関係なく、すべての人が能力を発揮できる社会を創ります。",
+        "theme": "労働",
+    },
+]
 
-
-PARTY_ICON_DEFAULT = {"自民党": "🏛️", "民主党": "👨‍👩‍👧", "立憲社会党": "🏥", "社会党": "🌿", "共産党": "🗣️"}
+PARTY_ICON_DEFAULT = {"A党": "🏛️", "B党": "👨‍👩‍👧", "C党": "🏥", "D党": "🌿", "無所属": "🗣️"}
 
 
 # --------------------------------
@@ -200,7 +312,7 @@ def apply_filters(data: List[Dict[str, Any]], party: str, policy: str, search: s
     out = []
     for c in data:
         ok_party  = (party == "すべて") or (c.get("party") == party)
-        ok_policy = (policy == "すべて") or (c.get("keyPolicy") == policy)
+        ok_policy = (policy == "すべて") or (c.get("theme") == policy)
         ok_search = (not search) or (search in c.get("name", ""))
         if ok_party and ok_policy and ok_search:
             out.append(c)
@@ -214,13 +326,13 @@ def render_header():
     st.markdown(
         """
 <div class="app-header">
-  <h1>選挙候補者情報システム</h1>
+  <h1>📊 選挙候補者情報システム</h1>
   <p class="subtitle">候補者の公約・政策を確認して、あなたの一票を決めましょう</p>
 </div>
 """,
         unsafe_allow_html=True,
     )
-#   partyIcon  initial  manifesto
+
 def candidate_card_html(c: Dict[str, Any]) -> str:
     party = c.get("party", "無所属")
     photo_class = f"photo-{party}"
@@ -257,17 +369,11 @@ def detail_html(c: Dict[str, Any]) -> str:
 
     initial = c.get("initial", "")
     name = c.get("name", "")
-   # manifesto = c.get("manifesto", []) or []
-    ## promise
-    manifesto = []
-    for key,item in c.items():
-        if key.startswith("promise"):
-            manifesto.append(item)
-    print(f"manifesto:{manifesto}")        
+    manifesto = c.get("manifesto", []) or []
     career = c.get("career", "")
-    #policy = c.get("policy", "")
+    policy = c.get("policy", "")
 
-    manifesto_items = "\n".join([f"<li>{m}</li>" for m in manifesto if not m == ""])
+    manifesto_items = "\n".join([f"<li>{m}</li>" for m in manifesto])
 
     return f"""<div class="detail-card"><div class="detail-header">
         <div class="modal-photo {photo_class}">{initial}</div>
@@ -283,6 +389,10 @@ def detail_html(c: Dict[str, Any]) -> str:
       <div class="section">
         <div class="section-title">💼 経歴・実績</div>
         <div style="line-height:1.8; color:#555;">{career}</div>
+      </div>
+      <div class="section">
+        <div class="section-title">🎯 重点政策</div>
+        <div style="line-height:1.8; color:#555;">{policy}</div>
       </div>
     </div>
     """
@@ -300,7 +410,7 @@ def render_list_page():
     with fc1:
         st.selectbox(
             "政党",
-            options=["すべて","自民党","民主党","立憲社会党", "社会党", "共産党"],
+            options=["すべて", "A党", "B党", "C党", "D党", "無所属"],
             key="party_filter",
         )
     with fc2:
