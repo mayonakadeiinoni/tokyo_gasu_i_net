@@ -438,30 +438,103 @@ def compare_html(c: Dict[str, Any]) -> str:
       </div>
     </div>
     """
-    
+
+import pandas as pd
 def render_compare_page():
-    st.write("テスト")
-    if st.button("一覧に戻る"):
-        _set_query_params(view="list")
-        st.rerun()
-        
- # 対象候補
-    candidate = None
-    try:
-        cid = int(cid_str) if cid_str is not None else None
-    except ValueError:
-        cid = None
-    if cid is not None:
-        for c in CANDIDATES:
-            if c["id"] == cid:
-                candidate = c
-                break
-    if not candidate:
-        st.warning("対象の候補者が見つかりません。")
+    render_header()
+    st.subheader("候補者ごとの比較表")
+
+    # 候補者リストを作る（「名前（政党）」表示）
+    labels = [f"{c.get('name','')}（{c.get('party','無所属')}）" for c in CANDIDATES]
+    label_to_obj = {labels[i]: CANDIDATES[i] for i in range(len(CANDIDATES))}
+
+    # どの候補を比べる？
+    selected = st.multiselect(
+        "比較したい候補者",
+        options=labels,
+        default=labels[:min(0, len(labels))]
+    )
+
+    #
+    if st.button("← 一覧へ戻る", use_container_width=True):
+        _set_query_params(view="list"); st.rerun()
+
+    if not selected:
+        st.info("候補者を1人以上選んでね。")
         return
 
-    st.markdown(detail_html(candidate), unsafe_allow_html=True)
+    show_comparisons = st.checkbox("争点", value=True)
+    show_promises    = st.checkbox("行いたい政策", value=False)
+    show_career      = st.checkbox("基本情報", value=False)
+
+    # 表データを作る 
+    rows = []
+
     
+    if show_career:
+        row = {"項目": "年齢"}
+        for label in selected:
+            row[label] = label_to_obj[label].get("age", "") or ""
+    
+        row = {"項目": "経歴"}
+        for label in selected:
+            row[label] = label_to_obj[label].get("career", "") or ""
+        rows.append(row)
+    
+  #      "keyPolicy":"経済",#重点政策分野
+  #  "brief":"農業と地域産業の振興を通じて、地元の暮らしを守り、次世代につながる地域社会を築きます。",#重点政策
+    if show_promises:
+        row = {"項目": "重点政策"}
+        for label in selected:
+            row[label] = label_to_obj[label].get("keyPolicy", "") or ""
+        rows.append(row)
+        
+        row = {"項目": "政策説明"}
+        for label in selected:
+            row[label] = label_to_obj[label].get("brief", "") or ""
+        rows.append(row)
+        
+        row = {"項目": "経歴"}
+        for label in selected:
+            row[label] = label_to_obj[label].get("career", "") or ""
+        rows.append(row)
+        PROMISE_MAX = 4  
+        for i in range(1, PROMISE_MAX + 1):
+            key = f"promise{i}"
+            row = {"項目": f"📋 公約{i}"}
+            for label in selected:
+                row[label] = label_to_obj[label].get(key, "") or ""
+            rows.append(row)
+
+    if show_comparisons:
+        topics = []
+        seen = set()
+        for label in selected:
+            comps = (label_to_obj[label].get("comparisons") or {})
+            for t in comps.keys():
+                if t not in seen:
+                    seen.add(t); topics.append(t)
+    
+        for t in topics:
+            row = {"項目": f"⚖️ {t}"}
+            for label in selected:
+                stance = (label_to_obj[label].get("comparisons") or {}).get(t, "")
+                row[label] = stance
+            rows.append(row)
+
+
+
+
+   
+
+    # 表にする
+    if not rows:
+        st.info("上のチェックボックスで出したい“かたまり”を選んでね。")
+        return
+
+    df = pd.DataFrame(rows)
+    st.dataframe(df, use_container_width=True)
+
     
     
     
@@ -474,7 +547,7 @@ st.markdown(f"<div class='page {enter_class}'>", unsafe_allow_html=True)
 if view == "detail":
     render_detail_page(cid)
 elif view == "compare":
-    render_detail_page(cid)
+     render_compare_page()
 else:
     render_list_page()
 
