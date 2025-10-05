@@ -346,6 +346,8 @@ def render_list_page():
             # ここが「画面遷移」：URLクエリを detail に切り替えて再描画
             if st.button("詳細を見る ➜", key=f"goto_{c['id']}", use_container_width=True):
                 nav_to("detail", c["id"])
+    if st.button("比較する", key=f"1", use_container_width=True):
+                nav_to("compare")
 
 
 # --------------------------------
@@ -394,13 +396,84 @@ def render_detail_page(cid_str: str | None):
 
 
 # --------------------------------
-# ルーティング（表示面のアニメーション方向も合わせる）
+# 比較ページ
 # --------------------------------
+
+def compare_html(c: Dict[str, Any]) -> str:
+    render_header()
+    
+    party = c.get("party", "無所属")
+    photo_class = f"photo-{party}"
+    party_class = f"party-{party}"
+    party_icon = get_party_icon(party, c.get("partyIcon"))
+
+    initial = c.get("initial", "")
+    name = c.get("name", "")
+   # manifesto = c.get("manifesto", []) or []
+    ## promise
+    manifesto = []
+    for key,item in c.items():
+        if key.startswith("promise"):
+            manifesto.append(item)
+    print(f"manifesto:{manifesto}")        
+    career = c.get("career", "")
+    #policy = c.get("policy", "")
+
+    manifesto_items = "\n".join([f"<li>{m}</li>" for m in manifesto if not m == ""])
+
+    return f"""<div class="detail-card"><div class="detail-header">
+        <div class="modal-photo {photo_class}">{initial}</div>
+        <h2 style="margin:0 0 8px 0;">{name}</h2>
+        <div class="candidate-party {party_class}" style="display:inline-block;">
+          <span class="party-icon">{party_icon}</span>{party}
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-title">📋 主な公約</div>
+        <ul class="manifesto-list">{manifesto_items}</ul>
+      </div>
+      <div class="section">
+        <div class="section-title">💼 経歴・実績</div>
+        <div style="line-height:1.8; color:#555;">{career}</div>
+      </div>
+    </div>
+    """
+    
+def render_compare_page():
+    st.write("テスト")
+    if st.button("一覧に戻る"):
+        _set_query_params(view="list")
+        st.rerun()
+        
+ # 対象候補
+    candidate = None
+    try:
+        cid = int(cid_str) if cid_str is not None else None
+    except ValueError:
+        cid = None
+    if cid is not None:
+        for c in CANDIDATES:
+            if c["id"] == cid:
+                candidate = c
+                break
+    if not candidate:
+        st.warning("対象の候補者が見つかりません。")
+        return
+
+    st.markdown(detail_html(candidate), unsafe_allow_html=True)
+    
+    
+    
+    
+
+
 view, cid = get_query_params()
 enter_class = "enter-right" if view == "detail" else "enter-left"
 st.markdown(f"<div class='page {enter_class}'>", unsafe_allow_html=True)
 
 if view == "detail":
+    render_detail_page(cid)
+elif view == "compare":
     render_detail_page(cid)
 else:
     render_list_page()
