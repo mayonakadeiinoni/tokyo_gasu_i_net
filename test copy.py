@@ -39,6 +39,28 @@ st.markdown(
 .app-header h1 { font-size:2.0rem; margin-bottom:.2rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
 .app-header .subtitle { font-size:1rem; opacity:.9; }
 
+/* ヘッダーを「左・中央・右」の3列にして、中央は常に真正面に */
+.header-row{
+  display:grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items:center;
+}
+.header-center{ text-align:center; }
+.header-right{ justify-self:end; }
+
+/* 地域バッジ */
+.region-badge{
+  display:inline-block;
+  padding:6px 12px;
+  border-radius:999px;
+  background:#eef2ff;
+  color:#334155;
+  border:1px solid #c7d2fe;
+  font-weight:700;
+  white-space:nowrap;
+  box-shadow:0 1px 2px rgba(0,0,0,.06);
+}
+
 /* 画面コンテナ & アニメーション */
 .page {
   background: transparent;
@@ -212,9 +234,16 @@ st.markdown(
   }
 }
 
-/* 3) （任意）セクション見出し自体も中央にしたい場合はON
-.section-title{ text-align: center; }
-*/
+/* 丸写真に画像をぴったり収める */
+.candidate-photo,
+.modal-photo{ overflow:hidden; position:relative; }
+.candidate-photo img,
+.modal-photo img{
+  width:100%;
+  height:100%;
+  object-fit:cover;   /* 余白なくトリミングして収める */
+  display:block;
+}
 </style>
 """,
     unsafe_allow_html=True,
@@ -223,6 +252,12 @@ st.markdown(
 from data import candidates
 
 CANDIDATES: List[Dict[str, Any]] = candidates
+
+# 全候補の地域が同一なら、その値をヘッダーに出す
+REGION = None
+_region_set = {c.get("region", "") for c in CANDIDATES if c.get("region")}
+if len(_region_set) == 1:
+    REGION = next(iter(_region_set))
 
 # ===== スタンス定義 =====
 TOPIC_ORDER = ["消費税増税", "夫婦別姓", "外国人参政権", "原発再稼働", "憲法改正", "同性婚"]
@@ -250,9 +285,9 @@ STANCE_CANON = {
 # 表示メタ（CSSのクラス名とアイコン・説明）
 STANCE_META = {
     "賛成":     {"icon": "✅", "class": "pro",     "desc": "基本的に賛成の立場"},
-    "一部賛成": {"icon": "⚖️", "class": "partial", "desc": "条件付き・一部賛成"},
+    "一部賛成": {"icon": "⚖️", "class": "partial1", "desc": "条件付き・一部賛成"},
     "中立":     {"icon": "➖", "class": "neutral",  "desc": "賛否を明確にせず"},
-    "一部反対": {"icon": "⚖️", "class": "partial", "desc": "条件付き・一部反対"},
+    "一部反対": {"icon": "🤷‍♀️", "class": "partial2", "desc": "条件付き・一部反対"},
     "反対":     {"icon": "❌", "class": "con",     "desc": "基本的に反対の立場"},
     "未回答":   {"icon": "❓", "class": "unknown",  "desc": "情報が見つからない／未回答"},
 }
@@ -294,6 +329,8 @@ set_party_icon_from_file("自民党", "zimin.png")
 set_party_icon_from_file("民主党", "minsh.png")
 set_party_icon_from_file("立憲社会党", "rikken.png")
 set_party_icon_from_file("社民党", "shamin.png")
+# --- 顔写真（共通アバター） ---
+AVATAR_DEFAULT_URI = _data_uri_from_file("men1.png")  # 相対パス
 
 # --------------------------------
 # ルーティング補助
@@ -398,15 +435,20 @@ def apply_filters(data: List[Dict[str, Any]], party: str, policy: str, search: s
 # コンポーネント描画
 # --------------------------------
 def render_header():
-    st.markdown(
-        """
-<div class="app-header">
-  <h1>選挙候補者情報システム</h1>
-  <p class="subtitle">候補者の公約・政策を確認して、あなたの一票を決めましょう</p>
-</div>
-""",
-        unsafe_allow_html=True,
-    )
+    region_badge = f'<span class="region-badge">🗺 {html.escape(REGION)}</span>' if REGION else ""
+    st.markdown(dedent(f"""
+    <div class="app-header">
+      <div class="header-row">
+        <div class="header-left"></div>
+        <div class="header-center">
+          <h1>選挙候補者情報システム</h1>
+          <p class="subtitle">候補者の公約・政策を確認して、あなたの一票を決めましょう</p>
+        </div>
+        <div class="header-right">{region_badge}</div>
+      </div>
+    </div>
+    """), unsafe_allow_html=True)
+
 #   partyIcon  initial  manifesto
 def candidate_card_html(c: Dict[str, Any]) -> str:
     party = c.get("party", "無所属")
@@ -420,13 +462,12 @@ def candidate_card_html(c: Dict[str, Any]) -> str:
     party_icon = get_party_icon(party, c.get("partyIcon"))
 
     tags = []
-    if region:     tags.append(f'<span class="tag">📍 {region}</span>')
     if key_policy: tags.append(f'<span class="tag">🎯 {key_policy}</span>')
     tags_html = "".join(tags)
 
     return f"""
     <div class="candidate-card">
-      <div class="candidate-photo {photo_class}">{initial}</div>
+      <div class="candidate-photo {photo_class}">{f'<img src="{AVATAR_DEFAULT_URI}" alt="{html.escape(name)}">' if AVATAR_DEFAULT_URI else html.escape(initial)}</div>
       <div class="candidate-name">{name}</div>
       <div class="candidate-tags">{tags_html}</div>
       <div class="candidate-party {party_class}">
@@ -491,8 +532,9 @@ def detail_html(c: Dict[str, Any]) -> str:
             )
         legend = ' '.join([
             '<span class="stance-badge pro">✅ 賛成</span>',
-            '<span class="stance-badge partial">⚖️ 一部賛成</span>',
+            '<span class="stance-badge partial1">⚖️ 一部賛成</span>',
             '<span class="stance-badge neutral">➖ 中立</span>',
+            '<span class="stance-badge partial2">🤷‍♀️ 一部反対</span>',
             '<span class="stance-badge con">❌ 反対</span>',
             '<span class="stance-badge unknown">❓ 未回答</span>',
         ])
@@ -512,7 +554,7 @@ def detail_html(c: Dict[str, Any]) -> str:
     return dedent(f"""
     <div class="detail-card">
         <div class="detail-header">
-            <div class="modal-photo {photo_class}">{html.escape(initial)}</div>
+            <div class="modal-photo {photo_class}">{f'<img src="{AVATAR_DEFAULT_URI}" alt="{html.escape(name)}">' if AVATAR_DEFAULT_URI else html.escape(initial)}</div>
             <h2 style="margin:0 0 8px 0;">{html.escape(name)}</h2>
             <div class="candidate-party {party_class}" style="display:inline-block;">
                 <span class="party-icon">{party_icon}</span>{html.escape(party)}
