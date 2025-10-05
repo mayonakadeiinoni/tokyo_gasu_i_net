@@ -1,4 +1,3 @@
-# app.py
 # -*- coding: utf-8 -*-
 # 📊 選挙候補者情報システム（Streamlit版・疑似画面遷移付き）
 # - URLクエリパラメータ（view, id）を使って「一覧」と「詳細」を切り替え
@@ -11,6 +10,8 @@ import streamlit as st
 from typing import List, Dict, Any
 from pathlib import Path
 import base64
+import re, html
+from textwrap import dedent
 
 # --------------------------------
 # ページ設定
@@ -85,18 +86,67 @@ st.markdown(
 .manifesto-list { list-style:none; padding-left:0; margin:0; }
 .manifesto-list li { padding:12px; margin: 0 0 10px; background:#f8f9ff; border-left: 4px solid #667eea; border-radius:5px; }
 
-/* 政党カラー */
-.photo-A党 { background: linear-gradient(135deg, #3d94c3 0%, #2b7a9e 100%); border-color:#236680; }
-.photo-B党 { background: linear-gradient(135deg, #e89060 0%, #d77840 100%); border-color:#b8623a; }
-.photo-C党 { background: linear-gradient(135deg, #9a5fb8 0%, #7d4a9a 100%); border-color:#603b7a; }
-.photo-D党 { background: linear-gradient(135deg, #55a563 0%, #3d8b4a 100%); border-color:#2e6b38; }
-.photo-無所属 { background: linear-gradient(135deg, #616161 0%, #424242 100%); border-color:#212121; }
+/* 主なスタンス 表 */
+.stance-table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:8px;
+  font-size:14px;
+}
+.stance-table th,
+.stance-table td{
+  padding:10px 12px;
+  border-top:1px solid #eee;
+  vertical-align:middle;
+}
+.stance-table th{
+  width:60%;
+  text-align:left;
+  color:#333;
+  font-weight:600;
+}
+.stance-table td{ text-align:right; }
 
-.party-A党 { background:#e8f4f8; color:#2b7a9e; border-color:#2b7a9e; }
-.party-B党 { background:#fff5ed; color:#d77840; border-color:#d77840; }
-.party-C党 { background:#f5eef8; color:#7d4a9a; border-color:#7d4a9a; }
-.party-D党 { background:#eef8f0; color:#3d8b4a; border-color:#3d8b4a; }
-.party-無所属 { background:#f5f5f5; color:#424242; border-color:#757575; }
+/* バッジ */
+.stance-badge{
+  display:inline-block;
+  padding:4px 10px;
+  border-radius:999px;
+  font-weight:700;
+  line-height:1.2;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.05);
+  white-space:nowrap;
+}
+.stance-badge.pro{      background:#e6f4ea; color:#137333; }  /* 緑: 賛成 */
+.stance-badge.partial{  background:#fff7e5; color:#8a6d1d; }  /* 黄: 一部賛成 */
+.stance-badge.neutral{  background:#f1f3f4; color:#3c4043; }  /* 灰: 中立 */
+.stance-badge.con{      background:#fce8e6; color:#c5221f; }  /* 赤: 反対 */
+.stance-badge.unknown{  background:#e8f0fe; color:#1967d2; }  /* 青: 未回答 */
+
+.stance-legend{
+  margin-top:4px;
+  font-size:12px;
+  color:#666;
+  display:flex; gap:8px; flex-wrap:wrap;
+}
+
+/* 政党カラー */
+.photo-自民党, .photo-A党 { background: linear-gradient(135deg, #3d94c3 0%, #2b7a9e 100%); border-color:#236680; }
+.party-自民党, .party-A党 { background:#e8f4f8; color:#2b7a9e; border-color:#2b7a9e; }
+
+.photo-民主党, .photo-B党 { background: linear-gradient(135deg, #e89060 0%, #d77840 100%); border-color:#b8623a; }
+.party-民主党, .party-B党 { background:#fff5ed; color:#d77840; border-color:#d77840; }
+
+.photo-立憲社会党, .photo-C党 { background: linear-gradient(135deg, #9a5fb8 0%, #7d4a9a 100%); border-color:#603b7a; }
+.party-立憲社会党, .party-C党 { background:#f5eef8; color:#7d4a9a; border-color:#7d4a9a; }
+
+.photo-社民党, .photo-D党 { background: linear-gradient(135deg, #55a563 0%, #3d8b4a 100%); border-color:#2e6b38; }
+.party-社民党, .party-D党 { background:#eef8f0; color:#3d8b4a; border-color:#3d8b4a; }
+
+/* 共産党は赤系で個別定義（A〜Dに割当が無いので単独） */
+.photo-共産党 { background: linear-gradient(135deg, #e66b6b 0%, #c83e3e 100%); border-color:#a83232; }
+.party-共産党 { background:#fdeaea; color:#c83e3e; border-color:#c83e3e; }
+
 
 /* 党アイコンを画像で使うときのサイズ・位置合わせ */
 .party-icon img{
@@ -106,6 +156,65 @@ st.markdown(
   vertical-align: -0.18em;
   display: inline-block;
 }
+
+/* ===== 中央寄せ & 視認性アップ（追記） ===================== */
+
+/* 1) 画面全体を中央に寄せる（wideでも中央にまとまる） */
+.block-container{
+  max-width: 1080px;            /* 中央の横幅。好みで 960–1200px に調整可 */
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 16px;            /* 端の余白 */
+  padding-right: 16px;
+}
+
+/* ヘッダー・チップ・詳細カードなど主要ブロックも中央に揃える */
+.app-header,
+.chips,
+.detail-card{
+  max-width: 880px;              /* 本文の読みやすい幅 */
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* 2) スタンス（賛成/反対）を中央寄せ & 大きくする */
+.stance-legend{                  /* 凡例を中央に */
+  justify-content: center;
+}
+.stance-table{
+  max-width: 720px;              /* 表の最大幅を決めて中央に */
+  margin-left: auto;
+  margin-right: auto;
+}
+.stance-table th,
+.stance-table td{
+  text-align: center;            /* テーブル内を中央揃えに */
+}
+
+/* テーマ名(左列)の文字も少し強調 */
+.stance-topic{
+  font-size: 1.05rem;
+  color: #333;
+  font-weight: 700;
+}
+
+/* バッジを一回り大きく、視認性アップ */
+.stance-badge{
+  font-size: 1.15rem;            /* 既定: 14px相当 → 約18px */
+  padding: 8px 16px;             /* クリック/タップしやすい大きさ */
+  letter-spacing: .02em;
+  line-height: 1.25;
+}
+@media (min-width: 900px){
+  .stance-badge{
+    font-size: 1.25rem;          /* デスクトップはさらに少し大きく */
+    padding: 10px 18px;
+  }
+}
+
+/* 3) （任意）セクション見出し自体も中央にしたい場合はON
+.section-title{ text-align: center; }
+*/
 </style>
 """,
     unsafe_allow_html=True,
@@ -115,6 +224,46 @@ from data import candidates
 
 CANDIDATES: List[Dict[str, Any]] = candidates
 
+# ===== スタンス定義 =====
+TOPIC_ORDER = ["消費税増税", "夫婦別姓", "外国人参政権", "原発再稼働", "憲法改正", "同性婚"]
+
+# 表記ゆれ → 正規化（最終的に STANCE_META のキーに揃える）
+STANCE_CANON = {
+    "賛成": "賛成",
+    "反対": "反対",
+    "一部賛成": "一部賛成",
+    "一部反対": "一部反対",
+    "条件付き賛成": "一部賛成",
+    "条件付き反対": "一部反対",
+    "部分賛成": "一部賛成",
+    "部分反対": "一部反対",
+    "どちらとも言えない": "中立",
+    "どちらともいえない": "中立",
+    "中立": "中立",
+    "保留": "中立",
+    "不明": "未回答",
+    "わからない": "未回答",
+    "回答しない": "未回答",
+    "無回答": "未回答",
+}
+
+# 表示メタ（CSSのクラス名とアイコン・説明）
+STANCE_META = {
+    "賛成":     {"icon": "✅", "class": "pro",     "desc": "基本的に賛成の立場"},
+    "一部賛成": {"icon": "⚖️", "class": "partial", "desc": "条件付き・一部賛成"},
+    "中立":     {"icon": "➖", "class": "neutral",  "desc": "賛否を明確にせず"},
+    "一部反対": {"icon": "⚖️", "class": "partial", "desc": "条件付き・一部反対"},
+    "反対":     {"icon": "❌", "class": "con",     "desc": "基本的に反対の立場"},
+    "未回答":   {"icon": "❓", "class": "unknown",  "desc": "情報が見つからない／未回答"},
+}
+
+def _normalize_stance(v: str) -> str:
+    s = (v or "").strip()
+    if not s:
+        return "未回答"
+    s2 = STANCE_CANON.get(s, s)
+    return s2 if s2 in STANCE_META else "未回答"
+# ===== ここまで =====
 
 PARTY_ICON_DEFAULT = {"自民党": "🏛️", "民主党": "👨‍👩‍👧", "立憲社会党": "🏥", "社民党": "🌿", "共産党": "🗣️"}
 
@@ -144,7 +293,7 @@ def set_party_icon_from_file(party: str, path: str):
 set_party_icon_from_file("自民党", "zimin.png")
 set_party_icon_from_file("民主党", "minsh.png")
 set_party_icon_from_file("立憲社会党", "rikken.png")
-set_party_icon_from_file("社民党", "syamin.png")
+set_party_icon_from_file("社民党", "shamin.png")
 
 # --------------------------------
 # ルーティング補助
@@ -293,31 +442,80 @@ def detail_html(c: Dict[str, Any]) -> str:
     party_class = f"party-{party}"
     key_policy = c.get("keyPolicy", "")
     brief = c.get("brief", "")
-    comparisons = c.get("comparisons", {}) or {}
-    comparison_items = "\n".join([f"<li>{k}: {v}</li>" for k, v in comparisons.items()])
     party_icon = get_party_icon(party, c.get("partyIcon"))
-
     initial = c.get("initial", "")
     name = c.get("name", "")
-   # manifesto = c.get("manifesto", []) or []
-    ## promise
-    manifesto = []
-    for key,item in c.items():
-        if key.startswith("promise"):
-            manifesto.append(item)
-    print(f"manifesto:{manifesto}")        
     career = c.get("career", "")
-    #policy = c.get("policy", "")
 
-    manifesto_items = "\n".join([f"<li>{m}</li>" for m in manifesto if not m == ""])
+    # --- 公約: promise1..N を数字順に ---
+    promises = []
+    for k, v in c.items():
+        if k.startswith("promise") and v:
+            m = re.findall(r"\d+", k)
+            num = int(m[0]) if m else 0
+            promises.append((num, v))
+    promises.sort(key=lambda t: t[0])
+    manifesto_items = "\n".join([f"<li>{html.escape(v)}</li>" for _, v in promises])
 
-    return f"""
+    # --- 主なスタンス: 表＋バッジ ---
+    comparisons = c.get("comparisons", {}) or {}
+    comparisons_html = ""
+    if comparisons:
+        def _order_key(topic: str) -> int:
+            try:
+                return TOPIC_ORDER.index(topic)
+            except ValueError:
+                return len(TOPIC_ORDER) + 1
+
+        rows = []
+        for topic, raw in sorted(comparisons.items(), key=lambda kv: _order_key(kv[0])):
+            stance = _normalize_stance(raw)
+            m = STANCE_META.get(stance, STANCE_META["未回答"])
+
+            badge_class = m.get("class", "unknown")
+            badge_icon  = m.get("icon",  "❓")
+            badge_desc  = html.escape(m.get("desc", ""), quote=True)
+
+            t = html.escape(topic)
+            s = html.escape(stance)
+
+            rows.append(
+                f'<tr>'
+                f'  <th class="stance-topic">{t}</th>'
+                f'  <td class="stance-value">'
+                f'    <span class="stance-badge {badge_class}" title="{badge_desc}">'
+                f'      {badge_icon} {s}'
+                f'    </span>'
+                f'  </td>'
+                f'</tr>'
+            )
+        legend = ' '.join([
+            '<span class="stance-badge pro">✅ 賛成</span>',
+            '<span class="stance-badge partial">⚖️ 一部賛成</span>',
+            '<span class="stance-badge neutral">➖ 中立</span>',
+            '<span class="stance-badge con">❌ 反対</span>',
+            '<span class="stance-badge unknown">❓ 未回答</span>',
+        ])
+        # ★ ここを dedent で左詰め
+        comparisons_html = dedent(f"""
+        <div class="section">
+          <div class="section-title">📌 主なスタンス</div>
+          <div class="stance-legend">{legend}</div>
+          <table class="stance-table" aria-label="政策ごとの賛否一覧">
+            <tbody>
+              {'\n'.join(rows)}
+            </tbody>
+          </table>
+        </div>
+        """).strip()
+
+    return dedent(f"""
     <div class="detail-card">
         <div class="detail-header">
-            <div class="modal-photo {photo_class}">{initial}</div>
-            <h2 style="margin:0 0 8px 0;">{name}</h2>
+            <div class="modal-photo {photo_class}">{html.escape(initial)}</div>
+            <h2 style="margin:0 0 8px 0;">{html.escape(name)}</h2>
             <div class="candidate-party {party_class}" style="display:inline-block;">
-                <span class="party-icon">{party_icon}</span>{party}
+                <span class="party-icon">{party_icon}</span>{html.escape(party)}
             </div>
         </div>
         <div class="section">
@@ -326,20 +524,16 @@ def detail_html(c: Dict[str, Any]) -> str:
         </div>
         <div class="section">
             <div class="section-title">💼 経歴・実績</div>
-            <div style="line-height:1.8; color:#555;">{career}</div>
+            <div style="line-height:1.8; color:#555;">{html.escape(career)}</div>
         </div>
+        {comparisons_html}
         <div class="section">
             <div class="section-title">🎯 重点政策</div>
-            <p style="margin:0; font-weight:bold;">分野：{key_policy}</p>
-            <div style="line-height:1.8; color:#555;">{brief}</div>
-        </div>
-        <div class="section">
-            <div class="section-title">📌 主なスタンス</div>
-            <ul class="manifesto-list">{comparison_items}</ul>
+            <p style="margin:0; font-weight:bold;">分野：{html.escape(key_policy)}</p>
+            <div style="line-height:1.8; color:#555;">{html.escape(brief)}</div>
         </div>
     </div>
-    """
-
+    """).strip()
 
 # --------------------------------
 # 一覧ページ
@@ -353,7 +547,8 @@ def render_list_page():
     with fc1:
         st.selectbox(
             "政党",
-            options=["すべて","自民党","民主党","立憲社会党", "社会党", "共産党"],
+            # ★"社会党" → "社民党" に修正
+            options=["すべて","自民党","民主党","立憲社会党", "社民党", "共産党"],
             key="party_filter",
         )
     with fc2:
