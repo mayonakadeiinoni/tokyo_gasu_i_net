@@ -594,6 +594,8 @@ def render_list_page():
             # ここが「画面遷移」：URLクエリを detail に切り替えて再描画
             if st.button("詳細を見る ➜", key=f"goto_{c['id']}", use_container_width=True):
                 nav_to("detail", c["id"])
+    if st.button("比較する", key=f"1", use_container_width=True):
+                nav_to("compare")
 
 
 # --------------------------------
@@ -642,14 +644,158 @@ def render_detail_page(cid_str: str | None):
 
 
 # --------------------------------
-# ルーティング（表示面のアニメーション方向も合わせる）
+# 比較ページ
 # --------------------------------
+
+def compare_html(c: Dict[str, Any]) -> str:
+    render_header()
+    
+    party = c.get("party", "無所属")
+    photo_class = f"photo-{party}"
+    party_class = f"party-{party}"
+    party_icon = get_party_icon(party, c.get("partyIcon"))
+
+    initial = c.get("initial", "")
+    name = c.get("name", "")
+   # manifesto = c.get("manifesto", []) or []
+    ## promise
+    manifesto = []
+    for key,item in c.items():
+        if key.startswith("promise"):
+            manifesto.append(item)
+    print(f"manifesto:{manifesto}")        
+    career = c.get("career", "")
+    #policy = c.get("policy", "")
+
+    manifesto_items = "\n".join([f"<li>{m}</li>" for m in manifesto if not m == ""])
+
+    return f"""<div class="detail-card"><div class="detail-header">
+        <div class="modal-photo {photo_class}">{initial}</div>
+        <h2 style="margin:0 0 8px 0;">{name}</h2>
+        <div class="candidate-party {party_class}" style="display:inline-block;">
+          <span class="party-icon">{party_icon}</span>{party}
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-title">📋 主な公約</div>
+        <ul class="manifesto-list">{manifesto_items}</ul>
+      </div>
+      <div class="section">
+        <div class="section-title">💼 経歴・実績</div>
+        <div style="line-height:1.8; color:#555;">{career}</div>
+      </div>
+    </div>
+    """
+
+import pandas as pd
+def render_compare_page():
+    render_header()
+    st.subheader("候補者ごとの比較表")
+
+    # 候補者リストを作る（「名前（政党）」表示）
+    labels = [f"{c.get('name','')}（{c.get('party','無所属')}）" for c in CANDIDATES]
+    label_to_obj = {labels[i]: CANDIDATES[i] for i in range(len(CANDIDATES))}
+
+    # どの候補を比べる？
+    selected = st.multiselect(
+        "比較したい候補者",
+        options=labels,
+        default=labels[:min(0, len(labels))]
+    )
+
+    #
+    if st.button("← 一覧へ戻る", use_container_width=True):
+        _set_query_params(view="list"); st.rerun()
+
+    if not selected:
+        st.info("候補者を1人以上選んでね。")
+        return
+
+    show_comparisons = st.checkbox("争点", value=True)
+    show_promises    = st.checkbox("行いたい政策", value=False)
+    show_career      = st.checkbox("基本情報", value=False)
+
+    # 表データを作る 
+    rows = []
+
+    
+    if show_career:
+        row = {"項目": "年齢"}
+        for label in selected:
+            row[label] = label_to_obj[label].get("age", "") or ""
+    
+        row = {"項目": "経歴"}
+        for label in selected:
+            row[label] = label_to_obj[label].get("career", "") or ""
+        rows.append(row)
+    
+  #      "keyPolicy":"経済",#重点政策分野
+  #  "brief":"農業と地域産業の振興を通じて、地元の暮らしを守り、次世代につながる地域社会を築きます。",#重点政策
+    if show_promises:
+        row = {"項目": "重点政策"}
+        for label in selected:
+            row[label] = label_to_obj[label].get("keyPolicy", "") or ""
+        rows.append(row)
+        
+        row = {"項目": "政策説明"}
+        for label in selected:
+            row[label] = label_to_obj[label].get("brief", "") or ""
+        rows.append(row)
+        
+        row = {"項目": "経歴"}
+        for label in selected:
+            row[label] = label_to_obj[label].get("career", "") or ""
+        rows.append(row)
+        PROMISE_MAX = 4  
+        for i in range(1, PROMISE_MAX + 1):
+            key = f"promise{i}"
+            row = {"項目": f"📋 公約{i}"}
+            for label in selected:
+                row[label] = label_to_obj[label].get(key, "") or ""
+            rows.append(row)
+
+    if show_comparisons:
+        topics = []
+        seen = set()
+        for label in selected:
+            comps = (label_to_obj[label].get("comparisons") or {})
+            for t in comps.keys():
+                if t not in seen:
+                    seen.add(t); topics.append(t)
+    
+        for t in topics:
+            row = {"項目": f"⚖️ {t}"}
+            for label in selected:
+                stance = (label_to_obj[label].get("comparisons") or {}).get(t, "")
+                row[label] = stance
+            rows.append(row)
+
+
+
+
+   
+
+    # 表にする
+    if not rows:
+        st.info("上のチェックボックスで出したい“かたまり”を選んでね。")
+        return
+
+    df = pd.DataFrame(rows)
+    st.dataframe(df, use_container_width=True)
+
+    
+    
+    
+
+
 view, cid = get_query_params()
 enter_class = "enter-right" if view == "detail" else "enter-left"
 st.markdown(f"<div class='page {enter_class}'>", unsafe_allow_html=True)
 
 if view == "detail":
     render_detail_page(cid)
+elif view == "compare":
+     render_compare_page()
 else:
     render_list_page()
 
